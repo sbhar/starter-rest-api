@@ -1,72 +1,50 @@
-const express = require('express')
-const app = express()
-const db = require('cyclic-dynamodb')
+const electron = require('electron');
+const path = require('path');
+const notifier = require('node-notifier');
+const server = require('./server/server.js');
+// const fs = require('fs');
+// const _ = require('lodash');
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+const { app, BrowserWindow, ipcMain, shell } = electron;
 
-// #############################################################################
-// This configures static hosting for files in /public that have the extensions
-// listed in the array.
-// var options = {
-//   dotfiles: 'ignore',
-//   etag: false,
-//   extensions: ['htm', 'html','css','js','ico','jpg','jpeg','png','svg'],
-//   index: ['index.html'],
-//   maxAge: '1m',
-//   redirect: false
-// }
-// app.use(express.static('public', options))
-// #############################################################################
+let mainWindow;
 
-// Create or Update an item
-app.post('/:col/:key', async (req, res) => {
-  console.log(req.body)
+app.on('ready', () => {
+  mainWindow = new BrowserWindow({
+    webPreferences: { backgroundThrottling: false },
+    show: false,
+    icon: path.join(__dirname,'public','images','favicon3.icns')
+  });
+  mainWindow.loadURL(`http://localhost:4172`);
+  mainWindow.maximize();
+  mainWindow.show();
+  mainWindow.on('closed', () => {
+    mainWindow=null;
+    app.quit();
+  });
+  
+});
 
-  const col = req.params.col
-  const key = req.params.key
-  console.log(`from collection: ${col} delete key: ${key} with params ${JSON.stringify(req.params)}`)
-  const item = await db.collection(col).set(key, req.body)
-  console.log(JSON.stringify(item, null, 2))
-  res.json(item).end()
-})
+// app.on('quit', () => {
+//   server.close();
+// })
 
-// Delete an item
-app.delete('/:col/:key', async (req, res) => {
-  const col = req.params.col
-  const key = req.params.key
-  console.log(`from collection: ${col} delete key: ${key} with params ${JSON.stringify(req.params)}`)
-  const item = await db.collection(col).delete(key)
-  console.log(JSON.stringify(item, null, 2))
-  res.json(item).end()
-})
-
-// Get a single item
-app.get('/:col/:key', async (req, res) => {
-  const col = req.params.col
-  const key = req.params.key
-  console.log(`from collection: ${col} get key: ${key} with params ${JSON.stringify(req.params)}`)
-  const item = await db.collection(col).get(key)
-  console.log(JSON.stringify(item, null, 2))
-  res.json(item).end()
-})
-
-// Get a full listing
-app.get('/:col', async (req, res) => {
-  const col = req.params.col
-  console.log(`list collection: ${col} with params: ${JSON.stringify(req.params)}`)
-  const items = await db.collection(col).list()
-  console.log(JSON.stringify(items, null, 2))
-  res.json(items).end()
-})
-
-// Catch all handler for all other request.
-app.use('*', (req, res) => {
-  res.json({ msg: 'no route handler founds' }).end()
-})
-
-// Start the server
-const port = process.env.PORT || 3000
-app.listen(port, () => {
-  console.log(`index.js listening on ${port}`)
-})
+ipcMain.on('playNotif', (event, name, message) => {
+  console.log('new message');
+  notifier.notify(
+    {
+      title: name,
+      message: message,
+      icon: path.join(__dirname, 'public', 'images', 'favicon3.png'), // Absolute path (doesn't work on balloons)
+      sound: true, // Only Notification Center or Windows Toasters
+      time: 1000,
+      timeout:1000,
+      expire:1000,
+      wait: false,
+      type: 'info'
+    },
+    function(err, response) {
+      // Response is response from notification
+    }
+  );
+});
